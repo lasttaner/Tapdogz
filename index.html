@@ -1,0 +1,1647 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Tappy Dogz</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #0f172a;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        #game-wrapper {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: linear-gradient(180deg, #38bdf8 0%, #bae6fd 65%, #fef08a 100%);
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Üst HUD Bar */
+        #hud {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            padding: 14px 18px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .hud-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-width: 65%;
+        }
+
+        .score-card {
+            background: rgba(15, 23, 42, 0.78);
+            backdrop-filter: blur(8px);
+            border: 2px solid rgba(255, 255, 255, 0.28);
+            border-radius: 18px;
+            padding: 8px 18px;
+            color: #fff;
+            text-align: center;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+            min-width: 110px;
+            pointer-events: auto;
+        }
+
+        .score-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #94a3b8;
+            font-weight: 700;
+        }
+
+        .score-value {
+            font-size: 32px;
+            font-weight: 900;
+            line-height: 1.1;
+            color: #fde047;
+            text-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+        }
+
+        .best-value {
+            font-size: 12px;
+            color: #cbd5e1;
+            font-weight: 600;
+            margin-top: 2px;
+        }
+
+        /* Aktif Güç Sayaç Rozetleri */
+        #powerup-badges {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 999px;
+            font-size: 13px;
+            font-weight: 800;
+            color: #fff;
+            background: rgba(15, 23, 42, 0.88);
+            border: 2px solid rgba(255, 255, 255, 0.35);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+            animation: popIn 0.25s ease-out;
+        }
+
+        @keyframes popIn {
+            0% { transform: scale(0.7); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        /* Etkinlik Duyuru Bandı */
+        #event-banner {
+            position: absolute;
+            top: 86px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(90deg, #ec4899, #8b5cf6, #ec4899);
+            color: #fff;
+            font-weight: 900;
+            font-size: 14px;
+            letter-spacing: 0.5px;
+            padding: 8px 20px;
+            border-radius: 999px;
+            border: 2px solid #fff;
+            box-shadow: 0 8px 24px rgba(236, 72, 153, 0.45);
+            z-index: 12;
+            white-space: nowrap;
+            pointer-events: none;
+            transition: opacity 0.25s ease, transform 0.25s ease;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        /* Işınlanma / Hayalet Atılım Butonu */
+        #teleport-btn {
+            position: absolute;
+            bottom: 24px;
+            right: 24px;
+            z-index: 15;
+            background: linear-gradient(135deg, #06b6d4, #3b82f6);
+            color: #fff;
+            border: 3px solid #fff;
+            border-radius: 20px;
+            padding: 14px 20px;
+            font-size: 15px;
+            font-weight: 900;
+            cursor: pointer;
+            box-shadow: 0 10px 25px rgba(6, 182, 212, 0.5);
+            transition: transform 0.12s ease;
+        }
+
+        #teleport-btn:active {
+            transform: scale(0.93);
+        }
+
+        /* Başlangıç & Bitiş Ekranları */
+        .overlay-screen {
+            position: absolute;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.62);
+            backdrop-filter: blur(6px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+            z-index: 30;
+        }
+
+        .modal-card {
+            background: rgba(255, 255, 255, 0.97);
+            border-radius: 28px;
+            padding: 24px 22px;
+            max-width: 440px;
+            width: 100%;
+            text-align: center;
+            box-shadow: 0 24px 50px rgba(0, 0, 0, 0.35);
+            border: 4px solid #fbbf24;
+            max-height: 92vh;
+            overflow-y: auto;
+        }
+
+        .game-title {
+            font-size: 36px;
+            font-weight: 900;
+            color: #1e293b;
+            letter-spacing: -0.5px;
+            margin-bottom: 4px;
+        }
+
+        .game-subtitle {
+            font-size: 14px;
+            color: #475569;
+            font-weight: 600;
+            margin-bottom: 16px;
+        }
+
+        .primary-btn {
+            width: 100%;
+            padding: 16px 24px;
+            border: none;
+            border-radius: 18px;
+            background: linear-gradient(180deg, #22c55e 0%, #16a34a 100%);
+            color: #fff;
+            font-size: 20px;
+            font-weight: 900;
+            cursor: pointer;
+            box-shadow: 0 6px 0 #15803d, 0 12px 24px rgba(22, 163, 74, 0.35);
+            transition: transform 0.1s ease, box-shadow 0.1s ease;
+            margin-bottom: 14px;
+        }
+
+        .primary-btn:hover {
+            filter: brightness(1.04);
+        }
+
+        .primary-btn:active {
+            transform: translateY(4px);
+            box-shadow: 0 2px 0 #15803d, 0 6px 12px rgba(22, 163, 74, 0.35);
+        }
+
+        .sound-test-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+
+        .secondary-btn {
+            flex: 1;
+            padding: 10px 12px;
+            border: 2px solid #cbd5e1;
+            border-radius: 14px;
+            background: #f8fafc;
+            color: #334155;
+            font-size: 13px;
+            font-weight: 800;
+            cursor: pointer;
+            transition: background 0.15s ease, transform 0.1s ease;
+        }
+
+        .secondary-btn:hover {
+            background: #e2e8f0;
+        }
+
+        .secondary-btn:active {
+            transform: scale(0.96);
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            text-align: left;
+            background: #f1f5f9;
+            padding: 12px;
+            border-radius: 16px;
+            font-size: 12px;
+            color: #334155;
+        }
+
+        .info-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: 600;
+            line-height: 1.25;
+        }
+
+        .stats-box {
+            display: flex;
+            justify-content: space-around;
+            background: #f8fafc;
+            border: 2px solid #e2e8f0;
+            border-radius: 18px;
+            padding: 14px;
+            margin: 16px 0;
+        }
+
+        .stat-col span {
+            display: block;
+            font-size: 12px;
+            color: #64748b;
+            font-weight: 700;
+        }
+
+        .stat-col strong {
+            font-size: 28px;
+            color: #0f172a;
+            font-weight: 900;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-wrapper">
+        <canvas id="gameCanvas"></canvas>
+
+        <!-- Üst HUD Bar -->
+        <div id="hud">
+            <div class="hud-group">
+                <div id="powerup-badges"></div>
+            </div>
+            <div class="score-card">
+                <div class="score-label">BARİYER</div>
+                <div class="score-value" id="scoreDisplay">0</div>
+                <div class="best-value" id="bestDisplay">REKOR: 0</div>
+            </div>
+        </div>
+
+        <!-- Özel Etkinlik Duyurusu -->
+        <div id="event-banner" class="hidden">✨ ÖZEL ETKİNLİK! HAK KÜRESİNİ YAKALA! ✨</div>
+
+        <!-- Işınlanma / Hayalet Butonu -->
+        <button id="teleport-btn" class="hidden" type="button">👻 IŞINLAN (3)</button>
+
+        <!-- Başlangıç Ekranı -->
+        <div id="start-screen" class="overlay-screen">
+            <div class="modal-card">
+                <div style="font-size: 48px; margin-bottom: 4px;">🐶✨</div>
+                <h1 class="game-title">Tappy Dogz</h1>
+                <p class="game-subtitle">0.75x Yumuşak Zıplama • 9 Süper Güç • Havlayan Dostun!</p>
+
+                <button id="start-btn" class="primary-btn" type="button">OYNA</button>
+
+                <div class="sound-test-row">
+                    <button id="test-bark-btn" class="secondary-btn" type="button">🔊 Ses Testi: Havla</button>
+                    <button id="test-howl-btn" class="secondary-btn" type="button">🐺 Ses Testi: Ulu</button>
+                </div>
+
+                <div class="info-grid">
+                    <div class="info-item">🐾 <span><b>10-50 Bariyer:</b> 1-5x Havlar</span></div>
+                    <div class="info-item">🌕 <span><b>60+ Her 10:</b> Uzun Uluma</span></div>
+                    <div class="info-item">❤️ <span><b>Ekstra Hak:</b> Bariyer Kırar</span></div>
+                    <div class="info-item">⭐ <span><b>Yıldız (15sn):</b> İçinden Geç</span></div>
+                    <div class="info-item">🪽 <span><b>Uçma (30sn):</b> Kanatla Süzül</span></div>
+                    <div class="info-item">🧪 <span><b>Küçülme (15sn):</b> Yarı Boyut</span></div>
+                    <div class="info-item">🚀 <span><b>Nadir Roket:</b> 30 Bariyer Geç</span></div>
+                    <div class="info-item">⏳ <span><b>Zaman Bükücü:</b> %45 Yavaşlat</span></div>
+                    <div class="info-item">⚡ <span><b>Lazer Göz:</b> Bariyer Eritir</span></div>
+                    <div class="info-item">🧲 <span><b>Kemik Mıknatıs:</b> 2x Puan</span></div>
+                    <div class="info-item" style="grid-column: span 2;">👻 <span><b>Hayalet Işınlanma:</b> 3 Şarj (Shift / Sağ Tık / Buton)</span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Oyun Bitti Ekranı -->
+        <div id="gameover-screen" class="overlay-screen hidden">
+            <div class="modal-card">
+                <div style="font-size: 46px; margin-bottom: 4px;">🐶💫</div>
+                <h2 class="game-title" style="font-size: 30px;">Oyun Bitti!</h2>
+                <p class="game-subtitle" id="death-reason">Bariyere çarptın ama harika uçtun!</p>
+
+                <div class="stats-box">
+                    <div class="stat-col">
+                        <span>GEÇİLEN BARİYER</span>
+                        <strong id="final-score">0</strong>
+                    </div>
+                    <div class="stat-col">
+                        <span>EN YÜKSEK REKOR</span>
+                        <strong id="final-best" style="color: #eab308;">0</strong>
+                    </div>
+                </div>
+
+                <button id="restart-btn" class="primary-btn" type="button">TEKRAR OYNA</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (function () {
+            "use strict";
+
+            // --- DOM ELEMANLARI ---
+            const canvas = document.getElementById("gameCanvas");
+            const ctx = canvas.getContext("2d");
+            const scoreDisplay = document.getElementById("scoreDisplay");
+            const bestDisplay = document.getElementById("bestDisplay");
+            const powerupBadges = document.getElementById("powerup-badges");
+            const eventBanner = document.getElementById("event-banner");
+            const teleportBtn = document.getElementById("teleport-btn");
+
+            const startScreen = document.getElementById("start-screen");
+            const gameoverScreen = document.getElementById("gameover-screen");
+            const startBtn = document.getElementById("start-btn");
+            const restartBtn = document.getElementById("restart-btn");
+            const testBarkBtn = document.getElementById("test-bark-btn");
+            const testHowlBtn = document.getElementById("test-howl-btn");
+            const finalScoreEl = document.getElementById("final-score");
+            const finalBestEl = document.getElementById("final-best");
+            const deathReasonEl = document.getElementById("death-reason");
+
+            // --- EKRAN BOYUTLANDIRMA ---
+            let width = window.innerWidth;
+            let height = window.innerHeight;
+            let dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+            function resizeCanvas() {
+                width = window.innerWidth;
+                height = window.innerHeight;
+                dpr = Math.min(window.devicePixelRatio || 1, 2);
+                canvas.width = Math.floor(width * dpr);
+                canvas.height = Math.floor(height * dpr);
+                ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            }
+            window.addEventListener("resize", resizeCanvas);
+            resizeCanvas();
+
+            // --- GERÇEKÇİ FORMANT KÖPEK SES MOTORU (WEB AUDIO API) ---
+            let audioCtx = null;
+
+            function ensureAudioContext() {
+                try {
+                    if (!audioCtx) {
+                        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+                        if (AudioContextClass) {
+                            audioCtx = new AudioContextClass();
+                        }
+                    }
+                    if (audioCtx && audioCtx.state === "suspended") {
+                        audioCtx.resume().catch(function () {});
+                    }
+                } catch (e) {}
+            }
+
+            function playSingleBark(delaySeconds) {
+                ensureAudioContext();
+                if (!audioCtx) return;
+
+                try {
+                    const startTime = audioCtx.currentTime + (delaySeconds || 0);
+                    const duration = 0.22;
+
+                    const osc1 = audioCtx.createOscillator();
+                    const osc2 = audioCtx.createOscillator();
+                    osc1.type = "sawtooth";
+                    osc2.type = "triangle";
+
+                    osc1.frequency.setValueAtTime(160, startTime);
+                    osc1.frequency.exponentialRampToValueAtTime(420, startTime + 0.045);
+                    osc1.frequency.exponentialRampToValueAtTime(145, startTime + duration);
+
+                    osc2.frequency.setValueAtTime(320, startTime);
+                    osc2.frequency.exponentialRampToValueAtTime(760, startTime + 0.045);
+                    osc2.frequency.exponentialRampToValueAtTime(250, startTime + duration);
+
+                    const formant = audioCtx.createBiquadFilter();
+                    formant.type = "bandpass";
+                    formant.frequency.setValueAtTime(650, startTime);
+                    formant.frequency.exponentialRampToValueAtTime(980, startTime + 0.05);
+                    formant.frequency.exponentialRampToValueAtTime(420, startTime + duration);
+                    formant.Q.value = 2.6;
+
+                    const chestOsc = audioCtx.createOscillator();
+                    const chestGain = audioCtx.createGain();
+                    chestOsc.type = "sine";
+                    chestOsc.frequency.setValueAtTime(140, startTime);
+                    chestOsc.frequency.exponentialRampToValueAtTime(65, startTime + 0.14);
+                    chestGain.gain.setValueAtTime(0.001, startTime);
+                    chestGain.gain.linearRampToValueAtTime(0.32, startTime + 0.02);
+                    chestGain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.16);
+
+                    const masterGain = audioCtx.createGain();
+                    masterGain.gain.setValueAtTime(0.001, startTime);
+                    masterGain.gain.linearRampToValueAtTime(0.38, startTime + 0.025);
+                    masterGain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+
+                    osc1.connect(formant);
+                    osc2.connect(formant);
+                    formant.connect(masterGain);
+                    masterGain.connect(audioCtx.destination);
+
+                    chestOsc.connect(chestGain);
+                    chestGain.connect(audioCtx.destination);
+
+                    osc1.start(startTime);
+                    osc2.start(startTime);
+                    chestOsc.start(startTime);
+
+                    osc1.stop(startTime + duration + 0.02);
+                    osc2.stop(startTime + duration + 0.02);
+                    chestOsc.stop(startTime + 0.18);
+                } catch (e) {}
+            }
+
+            function playBarkSequence(count) {
+                for (let i = 0; i < count; i++) {
+                    playSingleBark(i * 0.34);
+                }
+            }
+
+            function playHowl() {
+                ensureAudioContext();
+                if (!audioCtx) return;
+
+                try {
+                    const startTime = audioCtx.currentTime;
+                    const duration = 1.75;
+
+                    const osc1 = audioCtx.createOscillator();
+                    const osc2 = audioCtx.createOscillator();
+                    osc1.type = "triangle";
+                    osc2.type = "sawtooth";
+
+                    osc1.frequency.setValueAtTime(220, startTime);
+                    osc1.frequency.exponentialRampToValueAtTime(520, startTime + 0.42);
+                    osc1.frequency.linearRampToValueAtTime(490, startTime + 1.25);
+                    osc1.frequency.exponentialRampToValueAtTime(260, startTime + duration);
+
+                    osc2.frequency.setValueAtTime(440, startTime);
+                    osc2.frequency.exponentialRampToValueAtTime(1040, startTime + 0.42);
+                    osc2.frequency.linearRampToValueAtTime(980, startTime + 1.25);
+                    osc2.frequency.exponentialRampToValueAtTime(520, startTime + duration);
+
+                    const lfo = audioCtx.createOscillator();
+                    const lfoGain = audioCtx.createGain();
+                    lfo.frequency.value = 5.8;
+                    lfoGain.gain.value = 11;
+                    lfo.connect(lfoGain);
+                    lfoGain.connect(osc1.frequency);
+
+                    const filter = audioCtx.createBiquadFilter();
+                    filter.type = "bandpass";
+                    filter.frequency.setValueAtTime(540, startTime);
+                    filter.frequency.linearRampToValueAtTime(840, startTime + 0.45);
+                    filter.frequency.linearRampToValueAtTime(580, startTime + duration);
+                    filter.Q.value = 3.2;
+
+                    const osc2Mix = audioCtx.createGain();
+                    osc2Mix.gain.value = 0.25;
+
+                    const masterGain = audioCtx.createGain();
+                    masterGain.gain.setValueAtTime(0.001, startTime);
+                    masterGain.gain.linearRampToValueAtTime(0.36, startTime + 0.25);
+                    masterGain.gain.setValueAtTime(0.34, startTime + 1.2);
+                    masterGain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+
+                    osc1.connect(filter);
+                    osc2.connect(osc2Mix);
+                    osc2Mix.connect(filter);
+                    filter.connect(masterGain);
+                    masterGain.connect(audioCtx.destination);
+
+                    osc1.start(startTime);
+                    osc2.start(startTime);
+                    lfo.start(startTime);
+
+                    osc1.stop(startTime + duration + 0.05);
+                    osc2.stop(startTime + duration + 0.05);
+                    lfo.stop(startTime + duration + 0.05);
+                } catch (e) {}
+            }
+
+            function playTone(freqStart, freqEnd, duration, type, vol) {
+                ensureAudioContext();
+                if (!audioCtx) return;
+                try {
+                    const now = audioCtx.currentTime;
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = type || "sine";
+                    osc.frequency.setValueAtTime(freqStart, now);
+                    osc.frequency.exponentialRampToValueAtTime(freqEnd, now + duration);
+                    gain.gain.setValueAtTime(vol || 0.16, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start(now);
+                    osc.stop(now + duration + 0.02);
+                } catch (e) {}
+            }
+
+            // --- OYUN SABİTLERİ & 0.75X ZIPLAMA FİZİĞİ ---
+            const JUMP_SPEED_MULTIPLIER = 0.75;
+            const JUMP_VELOCITY = -8.25 * JUMP_SPEED_MULTIPLIER;
+            const GRAVITY = 0.37 * JUMP_SPEED_MULTIPLIER;
+            const BASE_SPEED = 2.95;
+            const PIPE_SPACING_X = 330;
+
+            const POWER_TYPES = [
+                { id: "extraLife", name: "Ekstra Hak", icon: "❤️", color: "#ef4444", weight: 15 },
+                { id: "star", name: "Yıldız Hakkı", icon: "⭐", color: "#eab308", weight: 14 },
+                { id: "wings", name: "Uçma Hakkı", icon: "🪽", color: "#38bdf8", weight: 13 },
+                { id: "shrink", name: "Küçülme Hakkı", icon: "🧪", color: "#a855f7", weight: 14 },
+                { id: "megaDash", name: "30 Bariyer Roketi", icon: "🚀", color: "#f97316", weight: 5 },
+                { id: "timeSlow", name: "Zaman Bükücü", icon: "⏳", color: "#14b8a6", weight: 11 },
+                { id: "laser", name: "Lazer Gözler", icon: "⚡", color: "#f43f5e", weight: 10 },
+                { id: "magnet", name: "Kemik Mıknatısı 2x", icon: "🧲", color: "#f59e0b", weight: 10 },
+                { id: "teleport", name: "Hayalet Işınlanma", icon: "👻", color: "#6366f1", weight: 8 }
+            ];
+
+            let gameState = "START";
+            let score = 0;
+            let bestScore = 0;
+            try {
+                bestScore = parseInt(localStorage.getItem("tappyDogzBest") || "0", 10) || 0;
+            } catch (e) {}
+            bestDisplay.textContent = "REKOR: " + bestScore;
+
+            let lastTime = 0;
+            let bgScroll = 0;
+            let isPointerDown = false;
+            let pointerTargetY = null;
+            let keysPressed = {};
+
+            const dog = {
+                x: 120,
+                y: 250,
+                vy: 0,
+                baseRadius: 21,
+                radius: 21,
+                rotation: 0,
+                wingAngle: 0,
+                tailAngle: 0,
+                extraLives: 0,
+                starTimer: 0,
+                wingsTimer: 0,
+                shrinkTimer: 0,
+                megaDashLeft: 0,
+                postDashGrace: 0,
+                timeSlowTimer: 0,
+                laserTimer: 0,
+                magnetTimer: 0,
+                teleportCharges: 0
+            };
+
+            let pipes = [];
+            let eventOrbs = [];
+            let goldenBones = [];
+            let particles = [];
+            let speechBubbles = [];
+            let clouds = [];
+            let hills = [];
+
+            let isEventActive = false;
+            let pipesSinceLastEvent = 0;
+            let pipesNeededForEvent = 14;
+            let nextPipeDistance = 0;
+            let boneSpawnTimer = 0.8;
+
+            function initBackground() {
+                clouds = [];
+                for (let i = 0; i < 6; i++) {
+                    clouds.push({
+                        x: (width / 5) * i + Math.random() * 60,
+                        y: 50 + Math.random() * (height * 0.35),
+                        scale: 0.65 + Math.random() * 0.65,
+                        speed: 0.35 + Math.random() * 0.35
+                    });
+                }
+                hills = [];
+                for (let i = 0; i < 5; i++) {
+                    hills.push({
+                        x: i * 280,
+                        radius: 130 + Math.random() * 70,
+                        color: i % 2 === 0 ? "#4ade80" : "#22c55e"
+                    });
+                }
+            }
+            initBackground();
+
+            function isAnyPowerOrEventRunning() {
+                if (isEventActive) return true;
+                if (eventOrbs.length > 0) return true;
+                if (dog.extraLives > 0) return true;
+                if (dog.starTimer > 0) return true;
+                if (dog.wingsTimer > 0) return true;
+                if (dog.shrinkTimer > 0) return true;
+                if (dog.megaDashLeft > 0 || dog.postDashGrace > 0) return true;
+                if (dog.timeSlowTimer > 0) return true;
+                if (dog.laserTimer > 0) return true;
+                if (dog.magnetTimer > 0) return true;
+                if (dog.teleportCharges > 0) return true;
+                return false;
+            }
+
+            function addSpeechBubble(text, color, duration) {
+                speechBubbles.push({
+                    text: text,
+                    color: color || "#1e293b",
+                    timer: duration || 2.0,
+                    offsetY: 0
+                });
+            }
+
+            function spawnParticles(x, y, color, count) {
+                for (let i = 0; i < (count || 14); i++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const speed = 1.5 + Math.random() * 4.5;
+                    particles.push({
+                        x: x,
+                        y: y,
+                        vx: Math.cos(angle) * speed,
+                        vy: Math.sin(angle) * speed,
+                        radius: 3 + Math.random() * 4,
+                        color: color,
+                        life: 0.55 + Math.random() * 0.35
+                    });
+                }
+            }
+
+            function resetGame() {
+                score = 0;
+                scoreDisplay.textContent = "0";
+                dog.x = Math.min(130, Math.max(85, width * 0.22));
+                dog.y = height * 0.44;
+                dog.vy = 0;
+                dog.radius = dog.baseRadius;
+                dog.rotation = 0;
+
+                dog.extraLives = 0;
+                dog.starTimer = 0;
+                dog.wingsTimer = 0;
+                dog.shrinkTimer = 0;
+                dog.megaDashLeft = 0;
+                dog.postDashGrace = 0;
+                dog.timeSlowTimer = 0;
+                dog.laserTimer = 0;
+                dog.magnetTimer = 0;
+                dog.teleportCharges = 0;
+
+                pipes = [];
+                eventOrbs = [];
+                goldenBones = [];
+                particles = [];
+                speechBubbles = [];
+
+                isEventActive = false;
+                pipesSinceLastEvent = 0;
+                pipesNeededForEvent = 14 + Math.floor(Math.random() * 5);
+                nextPipeDistance = 140;
+                boneSpawnTimer = 0.8;
+
+                eventBanner.classList.add("hidden");
+                teleportBtn.classList.add("hidden");
+                updateHUD();
+            }
+
+            function startGame() {
+                ensureAudioContext();
+                resetGame();
+                startScreen.classList.add("hidden");
+                gameoverScreen.classList.add("hidden");
+                gameState = "PLAYING";
+                dog.vy = JUMP_VELOCITY * 0.85;
+                addSpeechBubble("Woof! Başlayalım!", "#3b82f6", 1.5);
+            }
+
+            function triggerGameOver(reason) {
+                if (gameState === "GAMEOVER") return;
+                gameState = "GAMEOVER";
+                playTone(240, 75, 0.38, "sawtooth", 0.25);
+                spawnParticles(dog.x, dog.y, "#ef4444", 22);
+
+                if (score > bestScore) {
+                    bestScore = score;
+                    try {
+                        localStorage.setItem("tappyDogzBest", String(bestScore));
+                    } catch (e) {}
+                }
+
+                bestDisplay.textContent = "REKOR: " + bestScore;
+                finalScoreEl.textContent = String(score);
+                finalBestEl.textContent = String(bestScore);
+                deathReasonEl.textContent = reason || "Bariyere çarptın ama harika uçtun!";
+
+                eventBanner.classList.add("hidden");
+                teleportBtn.classList.add("hidden");
+                gameoverScreen.classList.remove("hidden");
+            }
+
+            function performJump() {
+                if (gameState !== "PLAYING") return;
+                ensureAudioContext();
+
+                if (dog.wingsTimer > 0) {
+                    dog.vy = -5.2;
+                    addSpeechBubble("Uçuyorum! 🪽", "#0284c7", 1.2);
+                    return;
+                }
+
+                dog.vy = JUMP_VELOCITY;
+                playTone(310, 490, 0.09, "sine", 0.11);
+                addSpeechBubble("Hop! 🐾", "#f59e0b", 1.0);
+            }
+
+            function activateTeleport() {
+                if (gameState !== "PLAYING" || dog.teleportCharges <= 0) return;
+                dog.teleportCharges--;
+                playTone(520, 1180, 0.22, "triangle", 0.22);
+                spawnParticles(dog.x, dog.y, "#6366f1", 20);
+
+                const groundY = height - 68;
+                dog.y = Math.max(85, Math.min(groundY - 85, dog.y));
+                dog.vy = -1.5;
+
+                let jumpedPipes = 0;
+                for (let i = 0; i < pipes.length; i++) {
+                    const p = pipes[i];
+                    if (!p.passed && p.x + p.width >= dog.x - 10) {
+                        p.passed = true;
+                        p.ghosted = true;
+                        onPipePassed(1);
+                        jumpedPipes++;
+                        if (jumpedPipes >= 2) break;
+                    }
+                }
+
+                dog.postDashGrace = 1.1;
+                spawnParticles(dog.x + 60, dog.y, "#38bdf8", 18);
+                addSpeechBubble("👻 IŞINLANDI!", "#6366f1", 1.4);
+                updateHUD();
+            }
+
+            function spawnPipe() {
+                const groundY = height - 68;
+                const shrink = Math.min(18, score * 0.18);
+                const gapHeight = Math.max(165, Math.min(192, 188 - shrink));
+                const minPipeH = 54;
+                const maxTopH = Math.max(minPipeH + 20, groundY - gapHeight - minPipeH);
+                const topHeight = minPipeH + Math.random() * (maxTopH - minPipeH);
+                const pipeWidth = Math.max(64, Math.min(78, width * 0.11));
+
+                const isMoving = score >= 15 && Math.random() < Math.min(0.45, 0.2 + (score - 15) * 0.005);
+
+                pipes.push({
+                    x: width + 40,
+                    width: pipeWidth,
+                    baseTopHeight: topHeight,
+                    topHeight: topHeight,
+                    gapHeight: gapHeight,
+                    bottomY: topHeight + gapHeight,
+                    passed: false,
+                    broken: false,
+                    ghosted: false,
+                    isMoving: isMoving,
+                    moveRange: isMoving ? (18 + Math.random() * 18) : 0,
+                    moveSpeed: isMoving ? (0.9 + Math.random() * 0.5) : 0,
+                    movePhase: Math.random() * Math.PI * 2,
+                    minLimit: minPipeH,
+                    maxLimit: maxTopH
+                });
+            }
+
+            function pickWeightedPower() {
+                const totalWeight = POWER_TYPES.reduce(function (sum, item) {
+                    return sum + item.weight;
+                }, 0);
+                let roll = Math.random() * totalWeight;
+                for (let i = 0; i < POWER_TYPES.length; i++) {
+                    roll -= POWER_TYPES[i].weight;
+                    if (roll <= 0) return POWER_TYPES[i];
+                }
+                return POWER_TYPES[0];
+            }
+
+            function triggerSpecialEvent() {
+                if (isAnyPowerOrEventRunning()) return;
+
+                isEventActive = true;
+                pipesSinceLastEvent = 0;
+                pipesNeededForEvent = 14 + Math.floor(Math.random() * 5);
+
+                const chosenPower = pickWeightedPower();
+                eventBanner.textContent = "✨ ÖZEL ETKİNLİK: " + chosenPower.icon + " " + chosenPower.name.toUpperCase() + " GELİYOR! ✨";
+                eventBanner.classList.remove("hidden");
+                addSpeechBubble("✨ Özel Etkinlik!", "#ec4899", 2.2);
+
+                const groundY = height - 68;
+                const orbY = Math.max(110, Math.min(groundY - 110, height * 0.45 + (Math.random() - 0.5) * 120));
+
+                eventOrbs.push({
+                    x: width + 80,
+                    y: orbY,
+                    baseY: orbY,
+                    radius: 26,
+                    phase: 0,
+                    power: chosenPower
+                });
+            }
+
+            function applyPowerUp(power) {
+                playTone(440, 960, 0.28, "triangle", 0.25);
+                spawnParticles(dog.x, dog.y, power.color, 26);
+                addSpeechBubble(power.icon + " " + power.name + "!", power.color, 2.2);
+
+                switch (power.id) {
+                    case "extraLife": dog.extraLives = 1; break;
+                    case "star": dog.starTimer = 15.0; break;
+                    case "wings": dog.wingsTimer = 30.0; dog.vy = 0; break;
+                    case "shrink": dog.shrinkTimer = 15.0; break;
+                    case "megaDash": dog.megaDashLeft = 30; break;
+                    case "timeSlow": dog.timeSlowTimer = 12.0; break;
+                    case "laser": dog.laserTimer = 12.0; break;
+                    case "magnet": dog.magnetTimer = 15.0; break;
+                    case "teleport": dog.teleportCharges = 3; break;
+                }
+                updateHUD();
+            }
+
+            function onPipePassed(amount) {
+                const multiplier = dog.magnetTimer > 0 ? 2 : 1;
+                const totalGain = (amount || 1) * multiplier;
+
+                for (let step = 0; step < totalGain; step++) {
+                    score++;
+                    scoreDisplay.textContent = String(score);
+
+                    if (score === 10) {
+                        playBarkSequence(1);
+                        addSpeechBubble("🐶 HAV!", "#f59e0b", 1.8);
+                    } else if (score === 20) {
+                        playBarkSequence(2);
+                        addSpeechBubble("🐶 HAV! HAV!", "#f59e0b", 2.0);
+                    } else if (score === 30) {
+                        playBarkSequence(3);
+                        addSpeechBubble("🐶 HAV! HAV! HAV!", "#f59e0b", 2.2);
+                    } else if (score === 40) {
+                        playBarkSequence(4);
+                        addSpeechBubble("🐶 4x HAV!", "#f59e0b", 2.4);
+                    } else if (score === 50) {
+                        playBarkSequence(5);
+                        addSpeechBubble("🐶 5x HAV!", "#ef4444", 2.6);
+                    } else if (score > 50 && score % 10 === 0) {
+                        playHowl();
+                        addSpeechBubble("🐺 AUUUUUUUUU~ (" + score + ")", "#8b5cf6", 2.8);
+                    }
+
+                    if (!isAnyPowerOrEventRunning()) {
+                        pipesSinceLastEvent++;
+                        if (pipesSinceLastEvent >= pipesNeededForEvent) {
+                            triggerSpecialEvent();
+                        }
+                    }
+                }
+            }
+
+            function updateHUD() {
+                const badges = [];
+                if (dog.extraLives > 0) badges.push({ text: "❤️ Ekstra Hak", bg: "#dc2626" });
+                if (dog.starTimer > 0) badges.push({ text: "⭐ Yıldız: " + Math.ceil(dog.starTimer) + "sn", bg: "#ca8a04" });
+                if (dog.wingsTimer > 0) badges.push({ text: "🪽 Uçma: " + Math.ceil(dog.wingsTimer) + "sn", bg: "#0284c7" });
+                if (dog.shrinkTimer > 0) badges.push({ text: "🧪 Küçük: " + Math.ceil(dog.shrinkTimer) + "sn", bg: "#7e22ce" });
+                if (dog.megaDashLeft > 0) badges.push({ text: "🚀 Roket: " + dog.megaDashLeft, bg: "#ea580c" });
+                if (dog.timeSlowTimer > 0) badges.push({ text: "⏳ Yavaş: " + Math.ceil(dog.timeSlowTimer) + "sn", bg: "#0d9488" });
+                if (dog.laserTimer > 0) badges.push({ text: "⚡ Lazer: " + Math.ceil(dog.laserTimer) + "sn", bg: "#e11d48" });
+                if (dog.magnetTimer > 0) badges.push({ text: "🧲 Mıknatıs: " + Math.ceil(dog.magnetTimer) + "sn", bg: "#d97706" });
+                if (dog.teleportCharges > 0) {
+                    badges.push({ text: "👻 Işın: " + dog.teleportCharges, bg: "#4f46e5" });
+                    teleportBtn.textContent = "👻 IŞINLAN (" + dog.teleportCharges + ")";
+                    teleportBtn.classList.remove("hidden");
+                } else {
+                    teleportBtn.classList.add("hidden");
+                }
+
+                powerupBadges.innerHTML = badges.map(function (b) {
+                    return '<div class="badge" style="background:' + b.bg + ';">' + b.text + '</div>';
+                }).join("");
+            }
+
+            function update(dt) {
+                for (let i = speechBubbles.length - 1; i >= 0; i--) {
+                    speechBubbles[i].timer -= dt;
+                    speechBubbles[i].offsetY += 18 * dt;
+                    if (speechBubbles[i].timer <= 0) speechBubbles.splice(i, 1);
+                }
+
+                for (let i = particles.length - 1; i >= 0; i--) {
+                    const pt = particles[i];
+                    pt.x += pt.vx * (dt * 60);
+                    pt.y += pt.vy * (dt * 60);
+                    pt.life -= dt;
+                    if (pt.life <= 0) particles.splice(i, 1);
+                }
+
+                dog.tailAngle += dt * 14;
+
+                if (gameState === "START") {
+                    dog.y = height * 0.44 + Math.sin(performance.now() * 0.004) * 12;
+                    dog.wingAngle += dt * 8;
+                    bgScroll += 1.1 * (dt * 60);
+                    return;
+                }
+
+                if (gameState !== "PLAYING") return;
+
+                let hudDirty = false;
+                if (dog.starTimer > 0) { dog.starTimer = Math.max(0, dog.starTimer - dt); hudDirty = true; }
+                if (dog.wingsTimer > 0) { dog.wingsTimer = Math.max(0, dog.wingsTimer - dt); hudDirty = true; }
+                if (dog.shrinkTimer > 0) { dog.shrinkTimer = Math.max(0, dog.shrinkTimer - dt); hudDirty = true; }
+                if (dog.postDashGrace > 0) { dog.postDashGrace = Math.max(0, dog.postDashGrace - dt); }
+                if (dog.timeSlowTimer > 0) { dog.timeSlowTimer = Math.max(0, dog.timeSlowTimer - dt); hudDirty = true; }
+                if (dog.laserTimer > 0) { dog.laserTimer = Math.max(0, dog.laserTimer - dt); hudDirty = true; }
+                if (dog.magnetTimer > 0) { dog.magnetTimer = Math.max(0, dog.magnetTimer - dt); hudDirty = true; }
+
+                if (hudDirty) updateHUD();
+
+                const targetRadius = dog.shrinkTimer > 0 ? dog.baseRadius * 0.54 : dog.baseRadius;
+                dog.radius += (targetRadius - dog.radius) * 0.2;
+
+                const isRocket = dog.megaDashLeft > 0;
+                const slowFactor = dog.timeSlowTimer > 0 ? 0.55 : 1.0;
+                const gentleScale = 1 + Math.min(0.35, score * 0.0032);
+                const speedMult = isRocket ? 3.2 : (gentleScale * slowFactor);
+                const moveDx = BASE_SPEED * speedMult * (dt * 60);
+
+                bgScroll += moveDx;
+                dog.wingAngle += dt * (isRocket ? 22 : 11);
+
+                const groundY = height - 68;
+
+                if (isRocket) {
+                    const midY = groundY * 0.48;
+                    dog.y += (midY - dog.y) * 0.15;
+                    dog.vy = 0;
+                    dog.rotation = 0;
+                    if (Math.random() < 0.6) {
+                        spawnParticles(dog.x - 20, dog.y, "#f97316", 2);
+                    }
+                } else if (dog.wingsTimer > 0) {
+                    let verticalInput = 0;
+                    if (keysPressed["ArrowUp"] || keysPressed["KeyW"] || keysPressed["Space"]) verticalInput -= 1;
+                    if (keysPressed["ArrowDown"] || keysPressed["KeyS"]) verticalInput += 1;
+
+                    if (verticalInput !== 0) {
+                        dog.vy = verticalInput * 4.6;
+                    } else if (isPointerDown && pointerTargetY !== null) {
+                        const diff = pointerTargetY - dog.y;
+                        dog.vy = Math.max(-5.2, Math.min(5.2, diff * 0.14));
+                    } else {
+                        dog.vy *= 0.85;
+                    }
+
+                    dog.y += dog.vy * (dt * 60);
+                    dog.rotation = Math.max(-0.35, Math.min(0.35, dog.vy * 0.06));
+                } else {
+                    dog.vy += GRAVITY * (dt * 60);
+                    dog.y += dog.vy * (dt * 60);
+                    dog.rotation = Math.max(-0.45, Math.min(0.65, dog.vy * 0.075));
+                }
+
+                if (dog.y - dog.radius < 8) {
+                    dog.y = 8 + dog.radius;
+                    dog.vy = 0;
+                }
+
+                if (dog.y + dog.radius >= groundY) {
+                    const isInvincible = isRocket || dog.starTimer > 0 || dog.wingsTimer > 0 || dog.postDashGrace > 0;
+                    if (isInvincible) {
+                        dog.y = groundY - dog.radius;
+                        dog.vy = -4.5;
+                    } else if (dog.extraLives > 0) {
+                        dog.extraLives = 0;
+                        dog.y = groundY - dog.radius - 10;
+                        dog.vy = JUMP_VELOCITY * 1.15;
+                        dog.postDashGrace = 0.8;
+                        playTone(220, 520, 0.25, "square", 0.22);
+                        spawnParticles(dog.x, dog.y, "#ef4444", 20);
+                        addSpeechBubble("❤️ Ekstra Hak Kurtardı!", "#ef4444", 1.8);
+                        updateHUD();
+                    } else {
+                        dog.y = groundY - dog.radius;
+                        triggerGameOver("Yere çakıldın!");
+                        return;
+                    }
+                }
+
+                for (let i = eventOrbs.length - 1; i >= 0; i--) {
+                    const orb = eventOrbs[i];
+                    orb.phase += dt * 4.5;
+                    orb.x -= moveDx;
+                    orb.y = orb.baseY + Math.sin(orb.phase) * 20;
+
+                    const dist = Math.hypot(dog.x - orb.x, dog.y - orb.y);
+                    if (dist <= dog.radius + orb.radius + 12) {
+                        applyPowerUp(orb.power);
+                        eventOrbs.splice(i, 1);
+                        isEventActive = false;
+                        eventBanner.classList.add("hidden");
+                        continue;
+                    }
+
+                    if (orb.x < -80) {
+                        eventOrbs.splice(i, 1);
+                        isEventActive = false;
+                        eventBanner.classList.add("hidden");
+                    }
+                }
+
+                if (dog.magnetTimer > 0) {
+                    boneSpawnTimer -= dt;
+                    if (boneSpawnTimer <= 0) {
+                        boneSpawnTimer = 0.42;
+                        goldenBones.push({
+                            x: width + 30,
+                            y: 90 + Math.random() * (groundY - 180),
+                            angle: 0
+                        });
+                    }
+                }
+
+                for (let i = goldenBones.length - 1; i >= 0; i--) {
+                    const bone = goldenBones[i];
+                    bone.angle += dt * 5;
+                    bone.x -= moveDx;
+
+                    if (dog.magnetTimer > 0) {
+                        const dx = dog.x - bone.x;
+                        const dy = dog.y - bone.y;
+                        const dist = Math.hypot(dx, dy);
+                        if (dist < 280 && dist > 1) {
+                            bone.x += (dx / dist) * 7.5 * (dt * 60);
+                            bone.y += (dy / dist) * 7.5 * (dt * 60);
+                        }
+                    }
+
+                    if (Math.hypot(dog.x - bone.x, dog.y - bone.y) < dog.radius + 20) {
+                        playTone(740, 1180, 0.12, "sine", 0.16);
+                        spawnParticles(bone.x, bone.y, "#fbbf24", 10);
+                        onPipePassed(1);
+                        goldenBones.splice(i, 1);
+                        continue;
+                    }
+
+                    if (bone.x < -40) goldenBones.splice(i, 1);
+                }
+
+                if (!isEventActive) {
+                    nextPipeDistance -= moveDx;
+                    if (nextPipeDistance <= 0) {
+                        spawnPipe();
+                        nextPipeDistance = PIPE_SPACING_X;
+
+                        // Akıllı yerleştirme: Etkinlik aktif olduğunda tam geçiş boşluğunun ortasına küre bırak
+                        if (isEventActive && eventOrbs.length === 0) {
+                            const lastPipe = pipes[pipes.length - 1];
+                            const perfectY = lastPipe.topHeight + lastPipe.gapHeight / 2;
+                            eventOrbs.push({
+                                x: lastPipe.x + lastPipe.width / 2,
+                                y: perfectY,
+                                baseY: perfectY,
+                                radius: 26,
+                                phase: 0,
+                                power: pickWeightedPower()
+                            });
+                        }
+                    }
+                }
+
+                const hitRadius = dog.radius * 0.77;
+
+                for (let i = pipes.length - 1; i >= 0; i--) {
+                    const p = pipes[i];
+                    p.x -= moveDx;
+
+                    if (p.isMoving && !p.broken) {
+                        p.movePhase += p.moveSpeed * dt;
+                        const nextTop = p.baseTopHeight + Math.sin(p.movePhase) * p.moveRange;
+                        p.topHeight = Math.max(p.minLimit, Math.min(p.maxLimit, nextTop));
+                        p.bottomY = p.topHeight + p.gapHeight;
+                    }
+
+                    if (dog.laserTimer > 0 && !p.broken && p.x > dog.x && p.x < dog.x + 250) {
+                        p.broken = true;
+                        playTone(880, 180, 0.18, "sawtooth", 0.2);
+                        spawnParticles(p.x + p.width / 2, dog.y, "#f43f5e", 22);
+                    }
+
+                    if (!p.passed && p.x + p.width < dog.x) {
+                        p.passed = true;
+                        if (dog.megaDashLeft > 0) {
+                            dog.megaDashLeft--;
+                            if (dog.megaDashLeft === 0) {
+                                dog.postDashGrace = 1.4;
+                                addSpeechBubble("🚀 Roket Bitti!", "#f97316", 1.8);
+                            }
+                            updateHUD();
+                        }
+                        onPipePassed(1);
+                    }
+
+                    if (!p.broken && !p.ghosted) {
+                        const inX = (dog.x + hitRadius > p.x) && (dog.x - hitRadius < p.x + p.width);
+                        const hitTop = (dog.y - hitRadius < p.topHeight);
+                        const hitBottom = (dog.y + hitRadius > p.bottomY);
+
+                        if (inX && (hitTop || hitBottom)) {
+                            if (isRocket) {
+                                p.broken = true;
+                                playTone(200, 90, 0.15, "square", 0.2);
+                                spawnParticles(p.x + p.width / 2, dog.y, "#f97316", 20);
+                            } else if (dog.starTimer > 0 || dog.postDashGrace > 0) {
+                                // Geçer
+                            } else if (dog.extraLives > 0) {
+                                dog.extraLives = 0;
+                                p.broken = true;
+                                playTone(260, 580, 0.25, "square", 0.25);
+                                spawnParticles(p.x + p.width / 2, dog.y, "#ef4444", 24);
+                                addSpeechBubble("❤️ Bariyer Kırıldı!", "#ef4444", 1.8);
+                                updateHUD();
+                            } else {
+                                triggerGameOver("Bariyere çarptın!");
+                                return;
+                            }
+                        }
+                    }
+
+                    if (p.x + p.width < -80) {
+                        pipes.splice(i, 1);
+                    }
+                }
+            }
+
+            function drawCloud(c) {
+                ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
+                ctx.beginPath();
+                ctx.arc(c.x, c.y, 26 * c.scale, 0, Math.PI * 2);
+                ctx.arc(c.x + 22 * c.scale, c.y - 8 * c.scale, 32 * c.scale, 0, Math.PI * 2);
+                ctx.arc(c.x + 48 * c.scale, c.y, 24 * c.scale, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            function drawPipe(p) {
+                if (p.broken) return;
+
+                ctx.save();
+                if (p.ghosted || dog.starTimer > 0) {
+                    ctx.globalAlpha = 0.55;
+                }
+
+                const grad = ctx.createLinearGradient(p.x, 0, p.x + p.width, 0);
+                if (p.isMoving) {
+                    grad.addColorStop(0, "#7c3aed");
+                    grad.addColorStop(0.45, "#a78bfa");
+                    grad.addColorStop(1, "#5b21b6");
+                } else {
+                    grad.addColorStop(0, "#15803d");
+                    grad.addColorStop(0.45, "#4ade80");
+                    grad.addColorStop(1, "#166534");
+                }
+
+                const capH = 24;
+                const capOverhang = 5;
+
+                if (p.topHeight > 0) {
+                    ctx.fillStyle = grad;
+                    ctx.strokeStyle = "#0f172a";
+                    ctx.lineWidth = 2.5;
+                    ctx.fillRect(p.x, 0, p.width, p.topHeight);
+                    ctx.strokeRect(p.x, -2, p.width, p.topHeight + 2);
+
+                    const topCapY = Math.max(0, p.topHeight - capH);
+                    ctx.fillRect(p.x - capOverhang, topCapY, p.width + capOverhang * 2, capH);
+                    ctx.strokeRect(p.x - capOverhang, topCapY, p.width + capOverhang * 2, capH);
+                }
+
+                const groundY = height - 68;
+                const bottomH = groundY - p.bottomY;
+                if (bottomH > 0) {
+                    ctx.fillStyle = grad;
+                    ctx.strokeStyle = "#0f172a";
+                    ctx.lineWidth = 2.5;
+                    ctx.fillRect(p.x, p.bottomY, p.width, bottomH);
+                    ctx.strokeRect(p.x, p.bottomY, p.width, bottomH);
+
+                    ctx.fillRect(p.x - capOverhang, p.bottomY, p.width + capOverhang * 2, capH);
+                    ctx.strokeRect(p.x - capOverhang, p.bottomY, p.width + capOverhang * 2, capH);
+                }
+
+                ctx.restore();
+            }
+
+            function drawDog() {
+                ctx.save();
+                ctx.translate(dog.x, dog.y);
+
+                if (dog.starTimer > 0) {
+                    ctx.beginPath();
+                    ctx.arc(0, 0, dog.radius + 11, 0, Math.PI * 2);
+                    ctx.fillStyle = "rgba(250, 204, 21, 0.35)";
+                    ctx.fill();
+                    ctx.strokeStyle = "#fde047";
+                    ctx.lineWidth = 3;
+                    ctx.stroke();
+                } else if (dog.extraLives > 0) {
+                    ctx.beginPath();
+                    ctx.arc(0, 0, dog.radius + 9, 0, Math.PI * 2);
+                    ctx.strokeStyle = "#ef4444";
+                    ctx.lineWidth = 3;
+                    ctx.stroke();
+                }
+
+                if (dog.laserTimer > 0 && gameState === "PLAYING") {
+                    const laserGrad = ctx.createLinearGradient(12, -4, 260, -4);
+                    laserGrad.addColorStop(0, "rgba(244, 63, 94, 0.95)");
+                    laserGrad.addColorStop(1, "rgba(244, 63, 94, 0)");
+                    ctx.fillStyle = laserGrad;
+                    ctx.fillRect(10, -8, 250, 8);
+                }
+
+                ctx.rotate(dog.rotation);
+                const r = dog.radius;
+
+                // Kuyruk Sallama Animasyonu
+                ctx.save();
+                ctx.translate(-r * 0.75, r * 0.1);
+                const tailWag = Math.sin(dog.tailAngle) * 0.45;
+                ctx.rotate(tailWag);
+                ctx.fillStyle = "#b45309";
+                ctx.beginPath();
+                ctx.ellipse(-r * 0.35, -r * 0.2, r * 0.35, r * 0.14, -0.4, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+
+                if (dog.wingsTimer > 0) {
+                    const flap = Math.sin(dog.wingAngle) * 0.45;
+                    ctx.save();
+                    ctx.rotate(flap);
+                    ctx.fillStyle = "#ffffff";
+                    ctx.strokeStyle = "#38bdf8";
+                    ctx.lineWidth = 2.5;
+                    ctx.beginPath();
+                    ctx.ellipse(-r * 0.3, -r * 0.65, r * 0.85, r * 0.42, -0.45, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.stroke();
+                    ctx.restore();
+                }
+
+                if (dog.megaDashLeft > 0) {
+                    ctx.fillStyle = "#ef4444";
+                    ctx.strokeStyle = "#0f172a";
+                    ctx.lineWidth = 2;
+                    ctx.fillRect(-r * 1.15, -r * 0.35, r * 0.9, r * 0.7);
+                    ctx.strokeRect(-r * 1.15, -r * 0.35, r * 0.9, r * 0.7);
+                }
+
+                ctx.fillStyle = "#d97706";
+                ctx.strokeStyle = "#451a03";
+                ctx.lineWidth = 2.5;
+                ctx.beginPath();
+                ctx.arc(0, 0, r, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.fillStyle = "#ef4444";
+                ctx.fillRect(-r * 0.75, r * 0.62, r * 1.5, r * 0.28);
+
+                ctx.fillStyle = "#78350f";
+                ctx.beginPath();
+                ctx.ellipse(-r * 0.38, r * 0.08, r * 0.34, r * 0.62, 0.25, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.fillStyle = "#fef3c7";
+                ctx.beginPath();
+                ctx.ellipse(r * 0.52, r * 0.16, r * 0.48, r * 0.36, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.fillStyle = "#0f172a";
+                ctx.beginPath();
+                ctx.arc(r * 0.88, r * 0.05, r * 0.17, 0, Math.PI * 2);
+                ctx.fill();
+
+                if (dog.laserTimer > 0) {
+                    ctx.fillStyle = "#f43f5e";
+                    ctx.beginPath();
+                    ctx.arc(r * 0.32, -r * 0.28, r * 0.22, 0, Math.PI * 2);
+                    ctx.fill();
+                } else {
+                    ctx.fillStyle = "#ffffff";
+                    ctx.beginPath();
+                    ctx.arc(r * 0.32, -r * 0.28, r * 0.24, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.stroke();
+
+                    ctx.fillStyle = "#0f172a";
+                    ctx.beginPath();
+                    ctx.arc(r * 0.38, -r * 0.28, r * 0.13, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    ctx.fillStyle = "#ffffff";
+                    ctx.beginPath();
+                    ctx.arc(r * 0.41, -r * 0.32, r * 0.05, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                ctx.restore();
+
+                for (let i = 0; i < speechBubbles.length; i++) {
+                    const sb = speechBubbles[i];
+                    const bx = dog.x + 15;
+                    const by = dog.y - dog.radius - 22 - sb.offsetY;
+
+                    ctx.save();
+                    ctx.font = "900 14px sans-serif";
+                    const textW = ctx.measureText(sb.text).width;
+                    const padX = 12;
+                    const boxW = textW + padX * 2;
+                    const boxH = 28;
+
+                    ctx.fillStyle = "#ffffff";
+                    ctx.strokeStyle = sb.color;
+                    ctx.lineWidth = 2.5;
+                    ctx.beginPath();
+                    ctx.roundRect(bx - boxW / 2, by - boxH / 2, boxW, boxH, 14);
+                    ctx.fill();
+                    ctx.stroke();
+
+                    ctx.fillStyle = sb.color;
+                    ctx.textAlign = "center";
+                    ctx.textBaseline = "middle";
+                    ctx.fillText(sb.text, bx, by);
+                    ctx.restore();
+                }
+            }
+
+            function render() {
+                const skyGrad = ctx.createLinearGradient(0, 0, 0, height);
+                if (dog.timeSlowTimer > 0) {
+                    skyGrad.addColorStop(0, "#1e1b4b");
+                    skyGrad.addColorStop(0.65, "#312e81");
+                    skyGrad.addColorStop(1, "#4338ca");
+                } else {
+                    skyGrad.addColorStop(0, "#38bdf8");
+                    skyGrad.addColorStop(0.65, "#bae6fd");
+                    skyGrad.addColorStop(1, "#fef08a");
+                }
+                ctx.fillStyle = skyGrad;
+                ctx.fillRect(0, 0, width, height);
+
+                for (let i = 0; i < clouds.length; i++) {
+                    const c = clouds[i];
+                    const cx = ((c.x - bgScroll * c.speed) % (width + 180) + (width + 180)) % (width + 180) - 90;
+                    drawCloud({ x: cx, y: c.y, scale: c.scale });
+                }
+
+                const groundY = height - 68;
+                for (let i = 0; i < hills.length; i++) {
+                    const h = hills[i];
+                    const hx = ((h.x - bgScroll * 0.45) % (width + 320) + (width + 320)) % (width + 320) - 160;
+                    ctx.fillStyle = h.color;
+                    ctx.beginPath();
+                    ctx.arc(hx, groundY + 20, h.radius, Math.PI, 0);
+                    ctx.fill();
+                }
+
+                for (let i = 0; i < pipes.length; i++) {
+                    drawPipe(pipes[i]);
+                }
+
+                for (let i = 0; i < goldenBones.length; i++) {
+                    const b = goldenBones[i];
+                    ctx.save();
+                    ctx.translate(b.x, b.y);
+                    ctx.rotate(b.angle);
+                    ctx.font = "26px sans-serif";
+                    ctx.textAlign = "center";
+                    ctx.textBaseline = "middle";
+                    ctx.fillText("🦴", 0, 0);
+                    ctx.restore();
+                }
+
+                for (let i = 0; i < eventOrbs.length; i++) {
+                    const orb = eventOrbs[i];
+                    ctx.save();
+                    ctx.translate(orb.x, orb.y);
+
+                    const glow = ctx.createRadialGradient(0, 0, 6, 0, 0, orb.radius + 14);
+                    glow.addColorStop(0, "#ffffff");
+                    glow.addColorStop(0.5, orb.power.color);
+                    glow.addColorStop(1, "rgba(255,255,255,0)");
+                    ctx.fillStyle = glow;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, orb.radius + 14, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    ctx.fillStyle = "#ffffff";
+                    ctx.strokeStyle = orb.power.color;
+                    ctx.lineWidth = 3.5;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, orb.radius, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.stroke();
+
+                    ctx.font = "24px sans-serif";
+                    ctx.textAlign = "center";
+                    ctx.textBaseline = "middle";
+                    ctx.fillText(orb.power.icon, 0, 1);
+                    ctx.restore();
+                }
+
+                ctx.fillStyle = "#16a34a";
+                ctx.fillRect(0, groundY, width, 16);
+                ctx.fillStyle = "#92400e";
+                ctx.fillRect(0, groundY + 16, width, 52);
+
+                ctx.fillStyle = "#22c55e";
+                const stripeW = 36;
+                const offset = -(bgScroll % (stripeW * 2));
+                for (let x = offset; x < width + stripeW; x += stripeW * 2) {
+                    ctx.fillRect(x, groundY, stripeW, 16);
+                }
+                ctx.strokeStyle = "#0f172a";
+                ctx.lineWidth = 2.5;
+                ctx.beginPath();
+                ctx.moveTo(0, groundY);
+                ctx.lineTo(width, groundY);
+                ctx.stroke();
+
+                drawDog();
+
+                for (let i = 0; i < particles.length; i++) {
+                    const pt = particles[i];
+                    ctx.globalAlpha = Math.max(0, pt.life * 1.4);
+                    ctx.fillStyle = pt.color;
+                    ctx.beginPath();
+                    ctx.arc(pt.x, pt.y, pt.radius, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                ctx.globalAlpha = 1;
+            }
+
+            function gameLoop(timestamp) {
+                if (!lastTime) lastTime = timestamp;
+                const dt = Math.min(0.05, (timestamp - lastTime) / 1000);
+                lastTime = timestamp;
+
+                update(dt);
+                render();
+                requestAnimationFrame(gameLoop);
+            }
+
+            startBtn.addEventListener("click", function (e) {
+                e.stopPropagation();
+                startGame();
+            });
+
+            restartBtn.addEventListener("click", function (e) {
+                e.stopPropagation();
+                startGame();
+            });
+
+            testBarkBtn.addEventListener("click", function (e) {
+                e.stopPropagation();
+                playSingleBark(0);
+                addSpeechBubble("Woof! 🔊", "#f59e0b", 1.2);
+            });
+
+            testHowlBtn.addEventListener("click", function (e) {
+                e.stopPropagation();
+                playHowl();
+                addSpeechBubble("Auuuu~ 🐺", "#8b5cf6", 1.8);
+            });
+
+            teleportBtn.addEventListener("click", function (e) {
+                e.stopPropagation();
+                activateTeleport();
+            });
+            teleportBtn.addEventListener("touchstart", function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                activateTeleport();
+            }, { passive: false });
+
+            canvas.addEventListener("mousedown", function (e) {
+                if (e.button === 2) {
+                    activateTeleport();
+                    return;
+                }
+                isPointerDown = true;
+                pointerTargetY = e.clientY;
+                performJump();
+            });
+
+            window.addEventListener("mousemove", function (e) {
+                if (isPointerDown) {
+                    pointerTargetY = e.clientY;
+                }
+            });
+
+            window.addEventListener("mouseup", function () {
+                isPointerDown = false;
+                pointerTargetY = null;
+            });
+
+            canvas.addEventListener("contextmenu", function (e) {
+                e.preventDefault();
+                activateTeleport();
+            });
+
+            canvas.addEventListener("touchstart", function (e) {
+                e.preventDefault();
+                if (e.touches && e.touches.length > 0) {
+                    isPointerDown = true;
+                    pointerTargetY = e.touches[0].clientY;
+                }
+                performJump();
+            }, { passive: false });
+
+            canvas.addEventListener("touchmove", function (e) {
+                e.preventDefault();
+                if (e.touches && e.touches.length > 0) {
+                    pointerTargetY = e.touches[0].clientY;
+                }
+            }, { passive: false });
+
+            window.addEventListener("touchend", function () {
+                isPointerDown = false;
+                pointerTargetY = null;
+            });
+
+            window.addEventListener("keydown", function (e) {
+                keysPressed[e.code] = true;
+                if (e.code === "Space" || e.code === "ArrowUp" || e.code === "KeyW") {
+                    if (gameState === "PLAYING") {
+                        e.preventDefault();
+                        performJump();
+                    }
+                } else if (e.code === "ShiftLeft" || e.code === "ShiftRight" || e.code === "KeyE") {
+                    if (gameState === "PLAYING") {
+                        e.preventDefault();
+                        activateTeleport();
+                    }
+                }
+            });
+
+            window.addEventListener("keyup", function (e) {
+                keysPressed[e.code] = false;
+            });
+
+            requestAnimationFrame(gameLoop);
+        })();
+    </script>
+</body>
+</html>
